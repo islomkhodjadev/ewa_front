@@ -1,5 +1,7 @@
 // components/common/Message.jsx
 import { useEffect, useState, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 export default function Message({ owner, text, embedding }) {
   const isUser = owner === "user";
@@ -105,7 +107,6 @@ export default function Message({ owner, text, embedding }) {
     }
   };
 
-  // Swipe handlers
   const handleTouchStart = (e) => {
     setStartX(e.touches[0].clientX);
   };
@@ -116,13 +117,10 @@ export default function Message({ owner, text, embedding }) {
     const currentX = e.touches[0].clientX;
     const diff = startX - currentX;
 
-    // Minimum swipe distance
     if (Math.abs(diff) > 50) {
       if (diff > 0) {
-        // Swipe left - next
         goToNext();
       } else {
-        // Swipe right - previous
         goToPrev();
       }
       setStartX(0);
@@ -167,7 +165,6 @@ export default function Message({ owner, text, embedding }) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Close button - positioned better for mini-app */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -178,7 +175,6 @@ export default function Message({ owner, text, embedding }) {
           ✕
         </button>
 
-        {/* Navigation buttons - only show if multiple items */}
         {selectedMedia.length > 1 && (
           <>
             {currentIndex > 0 && (
@@ -207,7 +203,6 @@ export default function Message({ owner, text, embedding }) {
           </>
         )}
 
-        {/* Media content - prevent closing when clicking on media */}
         <div
           className="relative max-w-full max-h-full flex items-center justify-center"
           onClick={(e) => e.stopPropagation()}
@@ -235,14 +230,11 @@ export default function Message({ owner, text, embedding }) {
           )}
         </div>
 
-        {/* Counter - positioned better */}
         {selectedMedia.length > 1 && (
           <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-60 px-4 py-2 rounded-full text-base font-medium">
             {currentIndex + 1} / {selectedMedia.length}
           </div>
         )}
-
-        {/* File name - at bottom left */}
       </div>
     );
   };
@@ -259,7 +251,6 @@ export default function Message({ owner, text, embedding }) {
 
     return (
       <div className="mt-3 space-y-3">
-        {/* Images Grid */}
         {hasImages && (
           <div
             className={`grid gap-2 ${
@@ -284,7 +275,6 @@ export default function Message({ owner, text, embedding }) {
           </div>
         )}
 
-        {/* Videos Grid */}
         {hasVideos && (
           <div className="grid grid-cols-1 gap-3">
             {mediaGroups.videos.map((video, index) => (
@@ -315,7 +305,6 @@ export default function Message({ owner, text, embedding }) {
           </div>
         )}
 
-        {/* Files List */}
         {hasFiles && (
           <div className="space-y-2">
             {mediaGroups.files.map((file, index) => {
@@ -391,19 +380,18 @@ export default function Message({ owner, text, embedding }) {
           }`}
         >
           {text && (
-            <p
+            <div
               className={`${
                 isUser ? "text-white" : "text-gray-900"
-              } mb-2 text-sm`}
+              } mb-2 text-sm prose prose-sm max-w-none`}
             >
-              {text}
-            </p>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+            </div>
           )}
           {!isUser && renderMediaGroups()}
         </div>
       </div>
 
-      {/* Modal */}
       {renderMediaModal()}
     </>
   );
