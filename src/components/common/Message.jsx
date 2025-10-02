@@ -371,56 +371,61 @@ export default function Message({ owner, text, embedding }) {
 
   return (
     <>
-      <div
-        className={`max-w-[80%] min-w-0 p-4 rounded-2xl ${
-          isUser
-            ? "bg-[#F80093] rounded-br-none"
-            : "bg-white border border-gray-200 rounded-bl-none"
-        }`}
-      >
-        {text && (
-          <div
-            className={`${
-              isUser ? "text-white" : "text-gray-900"
-            } mb-2 text-sm prose prose-sm max-w-none break-words overflow-wrap-anywhere whitespace-pre-wrap`}
-          >
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{
-                pre: ({ node, children, ...props }) => (
-                  <pre
-                    className="overflow-x-auto bg-gray-100 p-3 rounded-md text-xs max-w-full block"
-                    {...props}
-                  >
-                    {children}
-                  </pre>
-                ),
-                code: ({ node, inline, className, children, ...props }) => {
-                  if (inline) {
-                    return (
-                      <code
-                        className={`${className} bg-gray-100 px-1 rounded text-xs`}
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                    );
-                  }
-                  return (
-                    <div className="overflow-x-auto">
-                      <code className={`${className} block text-xs`} {...props}>
-                        {children}
-                      </code>
-                    </div>
-                  );
-                },
-              }}
+      <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4`}>
+        <div
+          className={`max-w-[80%] min-w-0 p-4 rounded-2xl ${
+            isUser
+              ? "bg-[#F80093] rounded-br-none"
+              : "bg-white border border-gray-200 rounded-bl-none"
+          }`}
+        >
+          {text && (
+            <div
+              className={`${
+                isUser ? "text-white" : "text-gray-900"
+              } mb-2 text-sm prose prose-sm max-w-none break-words overflow-wrap-anywhere whitespace-pre-wrap`}
             >
-              {text}
-            </ReactMarkdown>
-          </div>
-        )}
-        {!isUser && renderMediaGroups()}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  pre: ({ node, children, ...props }) => (
+                    <pre
+                      className="overflow-x-auto bg-gray-100 p-3 rounded-md text-xs max-w-full block"
+                      {...props}
+                    >
+                      {children}
+                    </pre>
+                  ),
+                  code: ({ node, inline, className, children, ...props }) => {
+                    if (inline) {
+                      return (
+                        <code
+                          className={`${className} bg-gray-100 px-1 rounded text-xs`}
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      );
+                    }
+                    return (
+                      <div className="overflow-x-auto">
+                        <code
+                          className={`${className} block text-xs`}
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      </div>
+                    );
+                  },
+                }}
+              >
+                {text}
+              </ReactMarkdown>
+            </div>
+          )}
+          {!isUser && renderMediaGroups()}
+        </div>
       </div>
 
       {renderMediaModal()}
