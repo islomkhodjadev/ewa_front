@@ -16,7 +16,6 @@ export default function TypingIndicator() {
           style={{ animationDelay: "300ms" }}
         ></div>
       </div>
-      <span className="ml-2 text-gray-400">...</span>
     </div>
   );
 }
