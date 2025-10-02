@@ -71,7 +71,6 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isWaitingForResponse]);
-
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (lastMessage && lastMessage.data) {
@@ -97,17 +96,30 @@ export default function ChatPage() {
         } else if (data.answer !== undefined) {
           console.log("Received answer:", data);
 
+          // Only update buttons/roles if they come in the message
           if (data.buttons) {
             console.log("Setting buttons:", data.buttons);
             setDynamicButtons(data.buttons);
             setAvailableRoles([]);
-          }
 
-          if (data.roles) {
+            // Set mode based on buttons
+            if (data.buttons.includes("/Тренажер")) {
+              setCurrentMode("skynet");
+            } else if (data.buttons.includes("/Чат")) {
+              setCurrentMode("chat");
+            }
+          } else if (data.roles) {
             console.log("Setting roles:", data.roles);
             setAvailableRoles(data.roles);
+            setDynamicButtons([]);
+            // If roles come, set mode to chat
+            setCurrentMode("chat");
+          } else {
+            // If no buttons/roles in response, keep the existing ones
+            console.log("No buttons/roles in response, keeping existing");
           }
 
+          // Override with explicit mode if provided
           if (data.mode) {
             setCurrentMode(data.mode === "skynet" ? "skynet" : "chat");
           }
@@ -129,18 +141,28 @@ export default function ChatPage() {
           const sortedMessages = sortMessages(data.messages);
           setMessages(sortedMessages);
 
-          if (data.mode) {
-            setCurrentMode(data.mode === "skynet" ? "skynet" : "chat");
-          }
-
+          // Set mode based on initial data
           if (data.buttons) {
             console.log("Setting initial buttons:", data.buttons);
             setDynamicButtons(data.buttons);
+
+            if (data.buttons.includes("/Тренажер")) {
+              setCurrentMode("skynet");
+            } else if (data.buttons.includes("/Чат")) {
+              setCurrentMode("chat");
+            }
           }
 
           if (data.roles) {
             console.log("Setting initial roles:", data.roles);
             setAvailableRoles(data.roles);
+            // If roles come, set mode to chat
+            setCurrentMode("chat");
+          }
+
+          // Override with explicit mode if provided
+          if (data.mode) {
+            setCurrentMode(data.mode === "skynet" ? "skynet" : "chat");
           }
         }
       } catch (error) {
@@ -152,7 +174,6 @@ export default function ChatPage() {
       }
     }
   }, [lastMessage, currentTaskId]);
-
   // Handle WebSocket errors
   useEffect(() => {
     if (wsError && !errorLogged.current) {
@@ -205,6 +226,10 @@ export default function ChatPage() {
           setInputMessage("");
         }
         setIsWaitingForResponse(true);
+
+        // REMOVED: Don't clear buttons/roles after sending
+        // They will only be cleared when new ones come in WebSocket response
+        console.log("Message sent, keeping existing buttons/roles");
       } else {
         console.error("Failed to send message");
       }
@@ -237,7 +262,18 @@ export default function ChatPage() {
     [handleSendMessage]
   );
 
+  // Check if input should be disabled
+  const isInputDisabled = useMemo(() => {
+    return isWaitingForResponse || !isConnected || availableRoles.length > 0;
+  }, [isWaitingForResponse, isConnected, availableRoles.length]);
+
+  // Check if send button should be disabled
+  const isSendDisabled = useMemo(() => {
+    return isWaitingForResponse || !isConnected || availableRoles.length > 0;
+  }, [isWaitingForResponse, isConnected, availableRoles.length]);
+
   const modeOptions = useMemo(() => {
+    // Only show roles if available
     if (availableRoles.length > 0) {
       return availableRoles.map((role) => ({
         text: role.name || role.role_name,
@@ -250,6 +286,7 @@ export default function ChatPage() {
       }));
     }
 
+    // Only show buttons if available from WebSocket
     if (dynamicButtons.length > 0) {
       return dynamicButtons.map((button, index) => ({
         text: button,
@@ -258,21 +295,9 @@ export default function ChatPage() {
       }));
     }
 
-    return [
-      {
-        text: currentMode === "skynet" ? "/ЧАТ" : "/Тренажер",
-        onClick: () =>
-          handleModeChange(currentMode === "skynet" ? "/ЧАТ" : "/Тренажер"),
-        type: "mode",
-      },
-    ];
-  }, [
-    availableRoles,
-    dynamicButtons,
-    currentMode,
-    handleRoleSelect,
-    handleModeChange,
-  ]);
+    // No hardcoded buttons - return empty array when no dynamic options
+    return [];
+  }, [availableRoles, dynamicButtons, handleRoleSelect, handleModeChange]);
 
   // Conditional return must be AFTER all hooks
   if (isLoading || !botClient) {
@@ -330,28 +355,28 @@ export default function ChatPage() {
             type="text"
             placeholder={
               isConnected
-                ? currentMode === "skynet"
+                ? availableRoles.length > 0
+                  ? "Выберите роль из списка ниже"
+                  : currentMode === "skynet"
                   ? "Режим Тренажер"
                   : "Режим ЧАТ"
                 : "Нет связи"
             }
             className={`w-[80%] ${
-              isConnected ? "bg-white" : "bg-red-300"
+              isConnected && availableRoles.length === 0
+                ? "bg-white"
+                : "bg-gray-300"
             } outline-none p-2 rounded-[12px]`}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isWaitingForResponse || !isConnected}
+            disabled={isInputDisabled}
           />
           <IoIosSend
-            color={isWaitingForResponse || !isConnected ? "#ccc" : "#F80093"}
+            color={isSendDisabled ? "#ccc" : "#F80093"}
             size={30}
             onClick={() => handleSendMessage()}
-            className={
-              isWaitingForResponse || !isConnected
-                ? "cursor-not-allowed"
-                : "cursor-pointer"
-            }
+            className={isSendDisabled ? "cursor-not-allowed" : "cursor-pointer"}
           />
         </div>
 
