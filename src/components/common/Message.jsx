@@ -383,7 +383,7 @@ export default function Message({ owner, text, embedding }) {
             <div
               className={`${
                 isUser ? "text-white" : "text-gray-900"
-              } mb-2 text-sm prose prose-sm max-w-none`}
+              } mb-2 text-sm prose prose-sm max-w-none break-words overflow-wrap-anywhere whitespace-pre-wrap`}
             >
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
             </div>
