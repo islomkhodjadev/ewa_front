@@ -71,6 +71,28 @@ export default function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isWaitingForResponse]);
+
+  // Function to determine mode based on buttons and roles
+  const determineMode = useCallback((buttons = [], roles = []) => {
+    console.log("Determining mode with buttons:", buttons, "roles:", roles);
+
+    // If there are roles OR button "/ОЦЕНИТЬ", then it's skynet mode
+    if (roles.length > 0 || buttons.includes("/ОЦЕНИТЬ")) {
+      console.log("Setting mode to: skynet");
+      return "skynet";
+    }
+
+    // If there's only button "/Тренажер", then it's chat mode
+    if (buttons.includes("/Тренажер")) {
+      console.log("Setting mode to: chat");
+      return "chat";
+    }
+
+    // Default to chat mode
+    console.log("Setting mode to: chat (default)");
+    return "chat";
+  }, []);
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (lastMessage && lastMessage.data) {
@@ -96,32 +118,31 @@ export default function ChatPage() {
         } else if (data.answer !== undefined) {
           console.log("Received answer:", data);
 
-          // Only update buttons/roles if they come in the message
+          // Update buttons/roles if they come in the message
           if (data.buttons) {
             console.log("Setting buttons:", data.buttons);
             setDynamicButtons(data.buttons);
             setAvailableRoles([]);
-
-            // Set mode based on buttons
-            if (data.buttons.includes("/Тренажер")) {
-              setCurrentMode("skynet");
-            } else if (data.buttons.includes("/Чат")) {
-              setCurrentMode("chat");
-            }
           } else if (data.roles) {
             console.log("Setting roles:", data.roles);
             setAvailableRoles(data.roles);
             setDynamicButtons([]);
-            // If roles come, set mode to chat
-            setCurrentMode("chat");
           } else {
             // If no buttons/roles in response, keep the existing ones
             console.log("No buttons/roles in response, keeping existing");
           }
 
-          // Override with explicit mode if provided
-          if (data.mode) {
-            setCurrentMode(data.mode === "skynet" ? "skynet" : "chat");
+          // Determine mode based on the CORRECT logic
+          const newMode = determineMode(
+            data.buttons || dynamicButtons,
+            data.roles || availableRoles
+          );
+          setCurrentMode(newMode);
+
+          // Override with explicit mode if provided (only if it makes sense)
+          if (data.mode && (data.mode === "skynet" || data.mode === "chat")) {
+            console.log("Overriding mode with explicit mode:", data.mode);
+            setCurrentMode(data.mode);
           }
 
           if (data.task_id === currentTaskId || !currentTaskId) {
@@ -141,28 +162,28 @@ export default function ChatPage() {
           const sortedMessages = sortMessages(data.messages);
           setMessages(sortedMessages);
 
-          // Set mode based on initial data
+          // Set initial buttons/roles
           if (data.buttons) {
             console.log("Setting initial buttons:", data.buttons);
             setDynamicButtons(data.buttons);
-
-            if (data.buttons.includes("/Тренажер")) {
-              setCurrentMode("skynet");
-            } else if (data.buttons.includes("/Чат")) {
-              setCurrentMode("chat");
-            }
           }
 
           if (data.roles) {
             console.log("Setting initial roles:", data.roles);
             setAvailableRoles(data.roles);
-            // If roles come, set mode to chat
-            setCurrentMode("chat");
           }
 
+          // Determine initial mode based on CORRECT logic
+          const initialMode = determineMode(data.buttons, data.roles);
+          setCurrentMode(initialMode);
+
           // Override with explicit mode if provided
-          if (data.mode) {
-            setCurrentMode(data.mode === "skynet" ? "skynet" : "chat");
+          if (data.mode && (data.mode === "skynet" || data.mode === "chat")) {
+            console.log(
+              "Overriding initial mode with explicit mode:",
+              data.mode
+            );
+            setCurrentMode(data.mode);
           }
         }
       } catch (error) {
@@ -173,7 +194,14 @@ export default function ChatPage() {
         );
       }
     }
-  }, [lastMessage, currentTaskId]);
+  }, [
+    lastMessage,
+    currentTaskId,
+    determineMode,
+    dynamicButtons,
+    availableRoles,
+  ]);
+
   // Handle WebSocket errors
   useEffect(() => {
     if (wsError && !errorLogged.current) {
@@ -299,6 +327,15 @@ export default function ChatPage() {
     return [];
   }, [availableRoles, dynamicButtons, handleRoleSelect, handleModeChange]);
 
+  // Update placeholder text based on current mode and state
+  const inputPlaceholder = useMemo(() => {
+    if (!isConnected) return "Нет связи";
+
+    if (availableRoles.length > 0) return "Нажмите слева, чтобы открыть героев";
+
+    return currentMode === "skynet" ? "Режим Тренажер" : "Режим ЧАТ";
+  }, [isConnected, availableRoles.length, currentMode]);
+
   // Conditional return must be AFTER all hooks
   if (isLoading || !botClient) {
     return <LoadingPage />;
@@ -353,15 +390,7 @@ export default function ChatPage() {
 
           <input
             type="text"
-            placeholder={
-              isConnected
-                ? availableRoles.length > 0
-                  ? "Выберите роль из списка ниже"
-                  : currentMode === "skynet"
-                  ? "Режим Тренажер"
-                  : "Режим ЧАТ"
-                : "Нет связи"
-            }
+            placeholder={inputPlaceholder}
             className={`w-[80%] ${
               isConnected && availableRoles.length === 0
                 ? "bg-white"
