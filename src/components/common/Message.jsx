@@ -64,6 +64,51 @@ export default function Message({ owner, text, embedding }) {
     return groups;
   };
 
+  // Function to handle file download
+  // Function to handle file download
+  const handleFileDownload = async (file) => {
+    try {
+      // For iOS/Telegram WebView, we need to use a different approach
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isTelegram = window.Telegram?.WebApp;
+
+      if (isIOS && isTelegram) {
+        // Try to use Telegram WebApp API to open the file
+        if (window.Telegram.WebApp.openLink) {
+          window.Telegram.WebApp.openLink(file.fileUrl, {
+            try_instant_view: false,
+          });
+          return;
+        }
+      }
+
+      // For other platforms or as fallback, try to fetch and download
+      try {
+        const response = await fetch(file.fileUrl);
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = file.fileName;
+        link.style.display = "none";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Clean up the blob URL
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+      } catch (fetchError) {
+        // If fetch fails (CORS issues), fall back to direct link
+        window.open(file.fileUrl, "_blank");
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      // Final fallback: just open in new tab
+      window.open(file.fileUrl, "_blank");
+    }
+  };
   const openMediaModal = (media, index, type) => {
     const mediaGroups = groupMediaByType(embedding.data);
     let allMedia = [];
@@ -328,11 +373,22 @@ export default function Message({ owner, text, embedding }) {
                 return "Файл";
               };
 
+              const getActionText = (ext) => {
+                // For PDF files, show "Скачать" (Download) instead of "Открыть" (Open)
+                return ext === "pdf" ? "Скачать" : "Открыть";
+              };
+
               return (
                 <div
                   key={index}
                   className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg border border-gray-300 cursor-pointer hover:bg-gray-200 transition-colors active:scale-95"
-                  onClick={() => window.open(file.fileUrl, "_blank")}
+                  onClick={() => {
+                    if (file.fileExtension === "pdf") {
+                      handleFileDownload(file);
+                    } else {
+                      window.open(file.fileUrl, "_blank");
+                    }
+                  }}
                 >
                   <span className="text-2xl">
                     {getFileIcon(file.fileExtension)}
@@ -341,9 +397,13 @@ export default function Message({ owner, text, embedding }) {
                     <div className="font-medium text-gray-900 truncate">
                       {file.fileName}
                     </div>
+                    <div className="text-sm text-gray-500">
+                      {getFileTypeText(file.fileExtension)}
+                      {file.file_size && ` • ${formatFileSize(file.file_size)}`}
+                    </div>
                   </div>
                   <span className="text-blue-500 text-sm font-medium whitespace-nowrap">
-                    Открыть
+                    {getActionText(file.fileExtension)}
                   </span>
                 </div>
               );
